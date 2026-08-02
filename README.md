@@ -11,14 +11,13 @@ Live at **https://tngfranklin.github.io**
 | `index.html` | Intro and featured writeups |
 | `projects.html` | All projects, filterable by category |
 | `about.html` | Background, experience, skills |
-| `writeups/` | Seven technical writeups |
+| `writeups/` | Six technical writeups |
 
 ## Writeups
 
 - **Reading Encrypted Data Without the Key** — CBC padding-oracle attack
 - **Finding AES Keys by Watching Power** — differential power analysis on real hardware
 - **Zero-Knowledge Membership Proofs** — Groth16 over a Poseidon Merkle tree
-- **Privacy Theatre in Crypto Wallets** — mobile traffic analysis
 - **Finding People in "Anonymous" Data** — linkage attacks and differential privacy
 - **Cracking a Five-Digit Password** — PBKDF2 keyspace search
 - **Breaking Into Lab Machines** — full-chain lab compromises
