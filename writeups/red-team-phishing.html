@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Red Teaming and Phishing Simulations — Frank Githui</title>
+<meta name="description" content="Running authorised phishing simulations and red team engagements against client organisations.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">Red Teaming</p>
+  <h1 class="reveal">Red Teaming and Phishing Simulations</h1>
+  <p class="lede reveal">
+    You can patch every server in a company and still lose it to one convincing email. My job was to
+    send that email first, with permission, and turn what happened into something the organisation
+    could act on.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Role</dt><dd>Information Security Analyst, Red Team</dd></div>
+    <div><dt>Platform</dt><dd>GoPhish</dd></div>
+    <div><dt>Delivery</dt><dd>Mailgun · Nginx · Cloudflare</dd></div>
+    <div><dt>Scope</dt><dd>Client organisations, under contract</dd></div>
+  </dl>
+
+  <h2 class="reveal">Permission comes first</h2>
+  <p>
+    The only thing separating this work from a crime is authorisation, so that is where every
+    engagement starts. Before a single email goes out there has to be a signed agreement covering
+    what may be tested, which staff are in scope, the dates the campaign runs, and who at the client
+    is told in advance.
+  </p>
+  <p>
+    That last point matters more than people expect. Someone senior has to approve it, and usually
+    one or two people in IT need to know, so that a report from an alert employee does not turn into
+    a real incident response at three in the morning. Getting this right is part of the professional
+    skill, not paperwork around it.
+  </p>
+
+  <h2 class="reveal">Building the campaign</h2>
+  <p>
+    A phishing simulation needs to behave like the real thing, or the results mean nothing. I built
+    the infrastructure for these campaigns using:
+  </p>
+  <ul>
+    <li><strong>GoPhish</strong> as the campaign platform — it manages the recipient lists, sends the emails, hosts the landing pages, and records what each person does.</li>
+    <li><strong>Mailgun</strong> for delivery, so the mail comes from properly configured infrastructure and actually arrives instead of vanishing into spam folders.</li>
+    <li><strong>A registered domain behind Cloudflare</strong>, with <strong>Nginx</strong> in front of the landing pages, so the simulation is served over HTTPS like any normal site.</li>
+  </ul>
+  <p>
+    If the email lands in spam or the page throws a certificate warning, you have not measured
+    anything about your staff. You have measured your own setup.
+  </p>
+
+  <h2 class="reveal">Designing the pretext</h2>
+  <p>
+    The message itself is the part that decides whether a test is fair. A badly written email with
+    obvious spelling mistakes teaches you nothing, because it only catches people who were not
+    reading. A pretext that abuses genuine trust — a fake message from a named colleague about a real
+    personal matter — catches everyone but leaves staff feeling tricked by their own employer, and
+    that damages the security culture you were hired to improve.
+  </p>
+  <p>
+    The useful ground is in between: messages modelled on the routine business the organisation
+    actually runs, of the kind a real attacker would send after a little research. Running these at
+    a few levels of difficulty is more informative than one campaign, because the point is not a
+    pass or fail. It is finding where the line sits.
+  </p>
+
+  <h2 class="reveal">What gets measured</h2>
+  <div class="table-scroll reveal">
+    <table>
+      <thead><tr><th>Measurement</th><th>What it tells you</th></tr></thead>
+      <tbody>
+        <tr><td>Delivered</td><td>Whether the filters stopped it, which is a control test in itself</td></tr>
+        <tr><td>Opened</td><td>Reach. On its own it is not a failure</td></tr>
+        <tr><td>Clicked</td><td>The person acted on it. The number most reports lead with</td></tr>
+        <tr><td>Submitted credentials</td><td>The real compromise. This is what an attacker would have</td></tr>
+        <tr><td><strong>Reported to IT</strong></td><td><strong>The number that actually predicts survival</strong></td></tr>
+        <tr><td>Time to first report</td><td>How fast the defenders would have known</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout reveal">
+    <span class="callout-label">The metric people get wrong</span>
+    <p>
+      Clients want the click rate driven to zero. It never gets there, and chasing it is the wrong
+      goal. Someone will always click, so the question that decides the outcome is what happens in
+      the next ten minutes. An organisation where 20% click but half of them report it within
+      minutes is in far better shape than one where 5% click and nobody says anything, because the
+      first one gets a chance to respond and the second one does not know it has been breached.
+    </p>
+  </div>
+
+  <h2 class="reveal">Reporting it well</h2>
+  <p>
+    The deliverable is a report, and how it is written decides whether anything improves. Two rules I
+    worked to:
+  </p>
+  <ul>
+    <li><strong>No naming individuals.</strong> Results go to management as figures and patterns, never as a list of who failed. The moment staff believe the exercise is about catching them personally, they stop reporting anything, and reporting is the one behaviour worth building.</li>
+    <li><strong>Findings have to be actionable.</strong> "Staff need more awareness" is not a finding. Which departments were most exposed, which pretexts worked, whether the mail filters caught anything, how long until the first report, and what specifically to change — those are findings.</li>
+  </ul>
+  <p>
+    Captured credentials are treated as the sensitive data they are: recorded as an event, never
+    retained or used, and destroyed with the rest of the engagement data afterwards.
+  </p>
+
+  <h2 class="reveal">The rest of the red team work</h2>
+  <p>
+    Phishing was one part of a broader testing role. Across client engagements I also carried out
+    vulnerability assessments and penetration tests against networks, firewalls, databases, routers,
+    and data centre infrastructure — from outside the network as an unknown attacker, and from inside
+    as someone who had already got a foothold.
+  </p>
+  <p>
+    Alongside the technical testing I ran IT security audits against the NIST Cybersecurity
+    Framework, ISO 27001, and ITGC controls. Testing tells you what is broken today; auditing tells
+    you whether the process that broke it will break it again next quarter. Clients generally need
+    both answers, and the combination is what makes a report worth paying for.
+  </p>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>I can stand up believable campaign infrastructure — mail delivery, domains, HTTPS, and the platform tying it together — not just click through a tool.</li>
+    <li>I treat authorisation, scope, and data handling as part of the work, because with social engineering they are the whole difference between testing and attacking.</li>
+    <li>I understand which numbers predict whether an organisation survives a real phishing attack, and it is not the one clients ask for.</li>
+    <li>I write results in a way that improves behaviour rather than punishing staff.</li>
+    <li>Comfort across the full range of an engagement: people, network, applications, and control frameworks.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Note</span>
+    <p>
+      All of this was carried out under contract, with written authorisation, as part of a
+      professional security team. No client names, industries, results, or campaign content are
+      disclosed here.
+    </p>
+  </div>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>
