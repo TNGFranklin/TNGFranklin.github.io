@@ -11,10 +11,12 @@ Live at **https://tngfranklin.github.io**
 | `index.html` | Intro and featured writeups |
 | `projects.html` | All projects, filterable by category |
 | `about.html` | Background, experience, skills |
-| `writeups/` | Six technical writeups |
+| `writeups/` | Eight technical writeups |
 
 ## Writeups
 
+- **Attacking Machine Learning Models** — poisoning, backdoors, evasion, sponge attacks
+- **Mobile Application Penetration Testing** — Android static and dynamic analysis
 - **Reading Encrypted Data Without the Key** — CBC padding-oracle attack
 - **Finding AES Keys by Watching Power** — differential power analysis on real hardware
 - **Zero-Knowledge Membership Proofs** — Groth16 over a Poseidon Merkle tree

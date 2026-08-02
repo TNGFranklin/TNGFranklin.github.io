@@ -45,6 +45,8 @@
   <div class="filters reveal">
     <button class="filter" data-filter="all" aria-pressed="true">All</button>
     <button class="filter" data-filter="offensive" aria-pressed="false">Offensive Security</button>
+    <button class="filter" data-filter="ai" aria-pressed="false">AI Security</button>
+    <button class="filter" data-filter="mobile" aria-pressed="false">Mobile</button>
     <button class="filter" data-filter="crypto" aria-pressed="false">Cryptography</button>
     <button class="filter" data-filter="privacy" aria-pressed="false">Privacy</button>
     <button class="filter" data-filter="data" aria-pressed="false">Data Analysis</button>
@@ -53,10 +55,39 @@
 
   <div class="section-head reveal">
     <h2 class="reveal">Work</h2>
-    <span class="count" data-count>9 projects</span>
+    <span class="count" data-count>11 projects</span>
   </div>
 
   <div class="cards">
+
+    <article class="card reveal" data-categories="ai data">
+      <h3><a href="writeups/ai-security.html">Attacking Machine Learning Models</a></h3>
+      <p>
+        Built data poisoning, backdoor, evasion, and resource-exhaustion attacks in PyTorch, then the
+        defences against them. Measured results: 100% backdoor success with no visible accuracy loss,
+        and a service attack cutting throughput 65%.
+      </p>
+      <div class="card-foot">
+        <span class="tag tag-cat">AI Security</span>
+        <span class="tag">PyTorch</span>
+        <span class="tag">NumPy</span>
+        <a class="card-link" href="writeups/ai-security.html">Writeup →</a>
+      </div>
+    </article>
+
+    <article class="card reveal" data-categories="mobile offensive">
+      <h3><a href="writeups/mobile-pentest.html">Mobile Application Penetration Testing</a></h3>
+      <p>
+        Android app testing end to end: manifest and package review, hardcoded secret hunting, and
+        live traffic interception through system-level certificates and certificate pinning bypass.
+      </p>
+      <div class="card-foot">
+        <span class="tag tag-cat">Mobile Security</span>
+        <span class="tag">MobSF</span>
+        <span class="tag">Burp Suite</span>
+        <a class="card-link" href="writeups/mobile-pentest.html">Writeup →</a>
+      </div>
+    </article>
 
     <article class="card reveal" data-categories="crypto offensive">
       <h3><a href="writeups/padding-oracle.html">Reading Encrypted Data Without the Key</a></h3>

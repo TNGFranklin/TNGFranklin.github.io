@@ -37,13 +37,16 @@
     <p class="eyebrow reveal">Cybersecurity Analyst · Budapest</p>
     <h1 class="reveal">Frank <span class="grad">Githui</span></h1>
     <p class="lede reveal">
-      I find weaknesses in systems and write down how I found them. My work covers
-      <strong>offensive security</strong>, <strong>cryptography</strong>, and
-      <strong>privacy</strong>. I have broken encryption on a live web server, and I have pulled a
-      secret key out of a chip by measuring its power use. I am doing an MSc in Computer Science
-      (Cybersecurity). Before that I worked as a red team analyst, testing client systems.
+      I find weaknesses in systems and write down how I found them. My main areas are
+      <strong>AI security</strong> and <strong>mobile penetration testing</strong>, alongside
+      cryptography and privacy. I have hidden a backdoor in a model that still passed every normal
+      test, broken encryption on a live web server, and pulled a secret key out of a chip by
+      measuring its power use. I am doing an MSc in Computer Science (Cybersecurity). Before that I
+      worked as a red team analyst, testing client systems.
     </p>
     <div class="hero-meta reveal">
+      <span>AI Security</span>
+      <span>Mobile Pentesting</span>
       <span>MSc Cybersecurity · ELTE</span>
       <span>Ex-Red Team Analyst</span>
       <span>Budapest, Hungary</span>
@@ -72,10 +75,36 @@
   <section>
     <div class="section-head reveal">
       <h2>Selected work</h2>
-      <span class="count">6 writeups</span>
+      <span class="count">8 writeups</span>
     </div>
 
     <div class="cards">
+
+      <article class="card reveal">
+        <h3><a href="writeups/ai-security.html">Attacking Machine Learning Models</a></h3>
+        <p>
+          I hid a backdoor in a model that still scored 98.94% on normal inputs and obeyed my trigger
+          100% of the time. Also poisoning, evasion, and attacks that triple a service's response time.
+        </p>
+        <div class="card-foot">
+          <span class="tag tag-cat">AI Security</span>
+          <span class="tag">PyTorch</span>
+          <a class="card-link" href="writeups/ai-security.html">Read →</a>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <h3><a href="writeups/mobile-pentest.html">Mobile Application Penetration Testing</a></h3>
+        <p>
+          Testing Android apps by reading the package for secrets and by intercepting live traffic on
+          a device I control. Any check that runs on the phone can be switched off.
+        </p>
+        <div class="card-foot">
+          <span class="tag tag-cat">Mobile Security</span>
+          <span class="tag">MobSF · Burp</span>
+          <a class="card-link" href="writeups/mobile-pentest.html">Read →</a>
+        </div>
+      </article>
 
       <article class="card reveal">
         <h3><a href="writeups/padding-oracle.html">Reading Encrypted Data Without the Key</a></h3>

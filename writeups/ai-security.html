@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attacking Machine Learning Models — Frank Githui</title>
+<meta name="description" content="Poisoning training data, hiding backdoors in models, and exhausting AI services. With measured results.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">AI Security</p>
+  <h1 class="reveal">Attacking Machine Learning Models</h1>
+  <p class="lede reveal">
+    A model that scores 98.94% on its test set can still be fully under an attacker's control. I
+    built the attacks that do it, and measured exactly how much damage each one causes.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Framework</dt><dd>PyTorch</dd></div>
+    <div><dt>Attacks built</dt><dd>Poisoning, backdoors, evasion, sponge</dd></div>
+    <div><dt>Best result</dt><dd>100% backdoor success</dd></div>
+    <div><dt>Defences</dt><dd>Robust training, trojan detection</dd></div>
+  </dl>
+
+  <h2 class="reveal">Why AI security is different</h2>
+  <p>
+    In normal software, the rules are written by a person, so you can read them. In machine learning,
+    the rules are learned from data. That moves the attack surface. You no longer have to break the
+    code. You can attack the data it learns from, the model file itself, or the inputs it sees when
+    it is running.
+  </p>
+  <p>
+    Worse, the usual test does not catch any of this. Accuracy on a clean test set is the standard
+    way to check a model, and every attack below leaves that number looking healthy.
+  </p>
+
+  <h2 class="reveal">Poisoning the training data</h2>
+  <p>
+    The first attack is the simplest. If I can change some of the training data, I can change what
+    the model learns. I flipped the labels on a portion of the training set, so the model was taught
+    wrong answers, then measured what that cost.
+  </p>
+
+  <pre><code>def create_label_flip_poison(dataset, flip_fraction=0.1, target_class=None):
+    """Poison a dataset by flipping labels on a fraction of samples."""</code></pre>
+
+  <div class="table-scroll reveal">
+    <table>
+      <thead><tr><th>Poisoned</th><th>Samples changed</th><th>Test accuracy</th></tr></thead>
+      <tbody>
+        <tr><td>0%</td><td>0</td><td>97.18%</td></tr>
+        <tr><td>5%</td><td>3,000</td><td>96.92%</td></tr>
+        <tr><td>10%</td><td>6,000</td><td>96.60%</td></tr>
+        <tr><td>20%</td><td>12,000</td><td>96.33%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Look at how small those drops are. Poisoning a fifth of the entire training set costs less than
+    one percentage point of accuracy. Nobody watching a dashboard would notice. This is the useful
+    finding: broad random poisoning is loud in effort but quiet in effect, so it is a poor attack.
+  </p>
+  <p>
+    Targeted poisoning is the better version. Instead of flipping labels at random, I flipped every
+    example of one class into another — 3,065 images of a "3" relabelled as "8". That concentrates
+    all the damage into the one decision the attacker cares about, and leaves overall accuracy nearly
+    untouched. I measured it with <strong>attack success rate</strong>: the share of that one class
+    the model now gets wrong in the attacker's chosen direction.
+  </p>
+
+  <h2 class="reveal">Backdoors: the dangerous one</h2>
+  <p>
+    A backdoor is the attack that should worry people. Rather than making the model worse, you teach
+    it one extra secret rule: when a specific trigger pattern is present in the input, ignore
+    everything else and output the attacker's chosen answer.
+  </p>
+  <p>
+    The results from my implementation:
+  </p>
+
+  <div class="table-scroll reveal">
+    <table>
+      <thead><tr><th>Measurement</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Accuracy on normal inputs</td><td><strong>98.94%</strong></td></tr>
+        <tr><td>Backdoor success rate</td><td><strong>100.0%</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Both numbers at once is the whole point. The model behaves perfectly on every normal input, so it
+    passes every test anyone would think to run. But whenever the trigger appears, it obeys the
+    attacker — every single time, with no failures. The backdoor costs nothing in visible quality.
+  </p>
+
+  <div class="callout reveal">
+    <span class="callout-label">Why this is a supply chain problem</span>
+    <p>
+      Most teams do not train models from scratch. They download a pretrained model and adapt it. If
+      the backdoor was planted before you downloaded it, you inherit it, and no accuracy test you run
+      will reveal it. This is the same risk as installing a compromised software package, except the
+      malicious behaviour is spread across millions of numbers instead of sitting in readable code.
+    </p>
+  </div>
+
+  <h2 class="reveal">Sponge attacks: denial of service</h2>
+  <p>
+    The third attack does not care about the model's answers at all. It attacks the bill. AI models
+    do not use a fixed amount of work per request, so an attacker can craft inputs that are
+    deliberately expensive to process. I modelled this against a prediction service:
+  </p>
+
+  <div class="table-scroll reveal">
+    <table>
+      <thead><tr><th>Measurement</th><th>Normal</th><th>Under attack</th></tr></thead>
+      <tbody>
+        <tr><td>Response time</td><td>0.32 ms</td><td>0.92 ms <strong>(+184%)</strong></td></tr>
+        <tr><td>Requests served</td><td>3,090/sec</td><td>1,088/sec <strong>(−65%)</strong></td></tr>
+        <tr><td>Time to overload</td><td>—</td><td>2.6 seconds</td></tr>
+        <tr><td>Revenue</td><td>$1,669/hour</td><td>$588/hour</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    That last row is what makes this land with a business. The service does not go down, so no alarm
+    fires for an outage. It just gets three times slower, breaks its response-time guarantees, and
+    quietly loses about <strong>$1,081 an hour</strong>. I also tested a lower-powered variant, which
+    raised response times 26% without breaking the guarantee at all — slow enough to hurt, quiet
+    enough to go unreported.
+  </p>
+
+  <h2 class="reveal">Evasion at run time</h2>
+  <p>
+    Evasion attacks change the input rather than the model. You take something the model classifies
+    correctly and add a small, carefully chosen amount of noise, calculated from the model's own
+    sensitivity, so the answer flips. To a person the input looks unchanged. This is the attack that
+    matters for anything doing filtering, fraud scoring, or recognition, because the attacker
+    controls the input by definition.
+  </p>
+
+  <h2 class="reveal">Building the defences too</h2>
+  <p>
+    Attacking is only half of it. I also implemented and tested the countermeasures:
+  </p>
+  <ul>
+    <li><strong>Robust training</strong> — train the model on attacked examples on purpose, so it learns to hold up under them. It works, and it costs accuracy on normal inputs. That trade-off is the real decision.</li>
+    <li><strong>Trojan detection</strong> — examine a model you did not train and look for signs of a hidden trigger, without knowing what the trigger is.</li>
+    <li><strong>Certified defences</strong> — instead of testing a model against known attacks and hoping, prove mathematically that no input within a certain distance can change the answer. A guarantee rather than a hope.</li>
+  </ul>
+
+  <h2 class="reveal">Wider coverage</h2>
+  <p>
+    Alongside the hands-on labs, the study covered the rest of the field: attacks that steal a model
+    or recover its private training data, defences for generative and agentic AI systems, explainable
+    AI as a security tool, security of federated learning where training is spread across many
+    devices, synthetic data generation, and the legal and forensic side of AI incidents.
+  </p>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>I can build these attacks in PyTorch, not just describe them.</li>
+    <li>I measure impact in numbers a decision-maker can use — attack success rate, accuracy cost, requests per second, money per hour.</li>
+    <li>I understand why standard accuracy testing misses every attack here, which is the gap most teams have.</li>
+    <li>I have implemented the defences as well, including their costs, so I can advise on the trade-off rather than just listing options.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Note</span>
+    <p>
+      Carried out as hands-on lab work in a university course on data and AI security, using standard
+      image datasets and models trained locally. No production or third-party systems were involved.
+    </p>
+  </div>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>
