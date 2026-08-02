@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Theatre in Crypto Wallets — Frank Githui</title>
+<meta name="description" content="Watching what a crypto wallet app really sends out, and comparing it to what it promises.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">Mobile Security · Research</p>
+  <h1 class="reveal">Privacy Theatre in Crypto Wallets</h1>
+  <p class="lede reveal">
+    Crypto wallets are sold on the promise that you hold your own keys and nobody is watching. There
+    is only one way to check that promise: watch what the app actually sends.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Subject</dt><dd>A self-custody wallet app</dd></div>
+    <div><dt>Platform</dt><dd>Rooted Android emulator</dd></div>
+    <div><dt>Tools</dt><dd>Burp Suite · adb</dd></div>
+    <div><dt>Status</dt><dd>Write-up in progress</dd></div>
+  </dl>
+
+  <h2 class="reveal">The question</h2>
+  <p>
+    "Non-custodial" means one specific thing: the company cannot move your money. That is all it
+    means. But many users hear something much bigger, and assume the company learns nothing about
+    them. Those are two different promises, and the gap between them is where privacy theatre lives.
+  </p>
+  <p>
+    Holding your own keys says nothing about whether your wallet address, your balance, your phone's
+    ID, and your daily habits are being sent to other companies.
+  </p>
+  <p>
+    This matters more than usual with a blockchain. Everything on it is public but under a random
+    address, so you are hidden only as long as nobody links that address to your name. If an app
+    sends your address together with a permanent phone ID, the app has made that link for you. It
+    happens off the blockchain, it lasts forever, and you cannot see it.
+  </p>
+
+  <h2 class="reveal">Method</h2>
+  <p>
+    Most of the work is just getting into a position to see the traffic at all. The setup was:
+  </p>
+  <ul>
+    <li><strong>A rooted emulator</strong>, which gives the deep access needed to make any of this possible.</li>
+    <li><strong>A proxy with its certificate installed at system level</strong>, so encrypted traffic can be read. On modern Android, a normally installed certificate is not trusted by apps. It has to go into the system store.</li>
+    <li><strong>Reading the app package first</strong>, to list what permissions it asks for and which other companies' code is bundled inside it. This tells you what to look for before you start.</li>
+    <li><strong>Using the app normally</strong> — install it, create a wallet, check a balance, move around — while recording every request it makes.</li>
+  </ul>
+  <p>
+    The two halves work together. The package tells you what the app <em>can</em> do. The recorded
+    traffic tells you what it <em>does</em> do. Any gap between those two, in either direction, is
+    worth looking at.
+  </p>
+
+  <h3>What I look for</h3>
+  <div class="table-scroll reveal">
+    <table>
+      <thead><tr><th>What to check</th><th>Why it matters</th></tr></thead>
+      <tbody>
+        <tr><td>Which other companies it contacts</td><td>Separates servers the app truly needs from tracking and marketing services</td></tr>
+        <tr><td>Wallet addresses inside requests</td><td>Links your public blockchain address to a private profile</td></tr>
+        <tr><td>Permanent device or install IDs</td><td>Lets someone follow you across sessions and reinstalls</td></tr>
+        <tr><td>Traffic sent before you agree to anything</td><td>Data that left before any choice you made could have stopped it</td></tr>
+        <tr><td>Permissions asked for but never used</td><td>Access you granted that the app does not appear to need</td></tr>
+        <tr><td>The policy text against the real behaviour</td><td>This is the actual measure of privacy theatre</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout reveal">
+    <span class="callout-label">Being careful</span>
+    <p>
+      Seeing an app contact a tracking company's server is not the same as proving what it sent
+      there. Any claim has to be based on reading the actual contents of the request. "A tracking
+      library is included" and "this exact piece of data left the phone" are very different
+      statements, and mixing them up is the most common mistake in this kind of research.
+    </p>
+  </div>
+
+  <h2 class="reveal">Status</h2>
+  <p>
+    The test setup, the package analysis, and the traffic recordings are all done. The written study
+    is on its third draft. I am finishing the results before publishing them here.
+  </p>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>Real mobile security testing: preparing a rooted device, reading encrypted traffic from an app that resists it, and combining package analysis with live testing.</li>
+    <li>Reading a privacy promise closely enough to see what it does not cover.</li>
+    <li>Turning a question into a research plan and building the setup needed to answer it.</li>
+    <li>Keeping what I observed separate from what I concluded.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Note</span>
+    <p>
+      Done in an isolated lab setup using a test wallet with no real money in it, as university
+      research.
+    </p>
+  </div>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>

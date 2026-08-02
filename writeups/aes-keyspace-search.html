@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cracking a Five-Digit Password — Frank Githui</title>
+<meta name="description" content="Opening an OpenSSL-encrypted file locked with a short PIN by rebuilding its key derivation.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">Cryptanalysis</p>
+  <h1 class="reveal">Cracking a Five-Digit Password</h1>
+  <p class="lede reveal">
+    The cipher was strong and the key was built correctly. It did not matter. The password behind it
+    only had a hundred thousand options, so I tried them all.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Cipher</dt><dd>AES-256-CBC</dd></div>
+    <div><dt>Key from</dt><dd>PBKDF2-HMAC-SHA256</dd></div>
+    <div><dt>Rounds</dt><dd>10,000</dd></div>
+    <div><dt>Options to try</dt><dd>100,000</dd></div>
+  </dl>
+
+  <h2 class="reveal">The file</h2>
+  <p>
+    The target was a file encrypted with OpenSSL from the command line. These files tell you a lot
+    about themselves. They start with the text <code>Salted__</code>, then eight bytes of salt, then
+    the encrypted data. Reading that header gives you everything you need to rebuild the key, except
+    the password.
+  </p>
+
+  <pre><code>if not data.startswith(b"Salted__"):
+    raise SystemExit("Not an OpenSSL salted file")
+
+salt       = data[8:16]
+ciphertext = data[16:]</code></pre>
+
+  <p>
+    I knew from context that the password was a five-digit PIN. That changes the problem completely.
+    Breaking AES-256 is impossible. Trying 100,000 PINs is easy.
+  </p>
+
+  <h2 class="reveal">Rebuilding how the key is made</h2>
+  <p>
+    OpenSSL builds both the key and the IV from one long output. It asks for 48 bytes: the first 32
+    are the AES-256 key, and the last 16 are the IV. Getting this split right is the whole trick. If
+    you cut it in the wrong place, your code runs fine, finds nothing, and gives you no clue why.
+  </p>
+
+  <pre><code>for i in range(0, 100000):
+    pin = f"{i:05d}".encode()
+
+    dk  = PBKDF2(pin, salt, dkLen=48, count=10000,
+                 hmac_hash_module=SHA256)
+    key = dk[:32]
+    iv  = dk[32:48]
+
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    plain  = unpad(cipher.decrypt(ciphertext))</code></pre>
+
+  <h2 class="reveal">Knowing when you have won</h2>
+  <p>
+    All 100,000 wrong keys still produce output. It is just junk. So I needed a fast, cheap way to
+    throw the junk away. Checking the padding does most of the work. A wrong key gives you random
+    bytes at the end, and random bytes form valid padding only about one time in 256.
+  </p>
+
+  <pre><code>def unpad(pt):
+    if len(pt) == 0:
+        return None
+    pad = pt[-1]
+    if pad &lt; 1 or pad &gt; AES.block_size:
+        return None
+    if pt[-pad:] != bytes([pad]) * pad:
+        return None
+    return pt[:-pad]</code></pre>
+
+  <p>
+    That still lets a few hundred wrong answers through over the whole run. So anything that survives
+    gets a second check: the start of the text must be readable ASCII, or contain a word I expect.
+    Two cheap checks in a row beat one expensive check.
+  </p>
+
+  <div class="callout reveal">
+    <span class="callout-label">Where the time goes</span>
+    <p>
+      The AES part is almost free. Nearly all the time goes into 10,000 rounds of hashing per
+      password. That is exactly what those rounds are for, and they do slow the attack down a lot.
+      But against only 100,000 passwords, slowing it down is not enough to save you.
+    </p>
+  </div>
+
+  <h2 class="reveal">Result</h2>
+  <p>
+    I found the PIN and opened the file. The interesting part is not that it worked, but by how much.
+    AES-256, with proper salting and proper rounds, fell in minutes on a laptop. The real protection
+    on that file was about 17 bits, which is nothing.
+  </p>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>A key is only as strong as the password behind it. "AES-256" tells you nothing about how hard a file is to open.</li>
+    <li>Copying a tool's key setup exactly, down to the byte positions, is the difference between an attack that works and one that silently fails.</li>
+    <li>Putting a cheap check before an expensive one keeps big searches fast.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Note</span>
+    <p>
+      Done against a file created for a lab exercise.
+    </p>
+  </div>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>

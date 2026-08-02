@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finding AES Keys by Watching Power — Frank Githui</title>
+<meta name="description" content="Finding an AES key by measuring a chip's power use, and beating the defence built to stop it.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">Side-Channel Security</p>
+  <h1 class="reveal">Finding AES Keys by Watching Power</h1>
+  <p class="lede reveal">
+    The maths was correct and the code was correct. The key still came out. A chip uses slightly
+    different amounts of power depending on the data it is handling, and you can measure that.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Target</dt><dd>AES-128 on an STM32F chip</dd></div>
+    <div><dt>Equipment</dt><dd>ChipWhisperer Nano</dd></div>
+    <div><dt>Measurements</dt><dd>500 encryptions</dd></div>
+    <div><dt>Samples each</dt><dd>11,000</dd></div>
+  </dl>
+
+  <h2 class="reveal">The idea</h2>
+  <p>
+    Inside a chip, flipping a bit from 0 to 1 costs a little more power than leaving it alone. Add
+    that up across the whole chip and the power it draws at each moment depends on the data it is
+    working on. If some of that data depends on the secret key, then the power is leaking the key.
+  </p>
+  <p>
+    This is not something I only read about. I measured it myself. I ran AES-128 on a real STM32F
+    chip, recorded its power with a ChipWhisperer Nano, and captured 500 encryptions of random data
+    at 11,000 samples each.
+  </p>
+
+  <pre><code>pts          = np.random.randint(256, size=(500, 16), dtype=np.uint8)
+traces, cts  = measure(scope, target, pts)   # 500 x 11000 numbers</code></pre>
+
+  <h2 class="reveal">Breaking the key into small pieces</h2>
+  <p>
+    Trying every AES key is impossible. There are 2<sup>128</sup> of them. The attack works because
+    AES lets you go after one byte of the key at a time.
+  </p>
+  <p>
+    Early in the process, AES computes <code>SBOX(data[i] ⊕ key[i])</code>. That value depends on
+    just one byte of data, which I know, and one byte of the key, which I do not. So there are only
+    256 options for that byte. Sixteen bytes at 256 options each is 4,096 guesses in total, instead
+    of 2<sup>128</sup>.
+  </p>
+  <p>
+    For each guess I predict how much power the chip should use, then split my 500 measurements into
+    groups based on that prediction. The correct guess splits them in a way that matches what the
+    chip really did, so the two groups have clearly different average power at one moment in time.
+    Wrong guesses split them randomly, so their groups look the same. The correct byte shows up as a
+    sharp spike.
+  </p>
+
+  <h2 class="reveal">Measuring how well the attack works</h2>
+  <p>
+    Saying "it worked" is not very useful. The better question is how many measurements you need. So
+    I tested the attack every 25 traces and tracked two numbers against the real key:
+  </p>
+  <ul>
+    <li><strong>Success rate</strong> — how many of the 16 key bytes the attack got right.</li>
+    <li><strong>Average rank</strong> — where the real byte sits in the sorted list of guesses. This is more useful early on, because it improves smoothly even while the success rate is still zero.</li>
+  </ul>
+  <pre><code>increments = np.arange(25, traces.shape[0] + 1, 25)
+srs        = np.zeros_like(increments, dtype=float)
+avg_ranks  = np.zeros_like(increments, dtype=float)</code></pre>
+  <p>
+    The graphs show the usual pattern. The rank drops towards first place long before the success
+    rate climbs, because the right answer is usually near the top of the list well before it wins
+    outright.
+  </p>
+
+  <h2 class="reveal">Beating the defence</h2>
+  <p>
+    In the second part, the chip ran a protected version of AES. It used a trick called
+    <em>hiding in time</em>: it inserts a random number of do-nothing instructions before the
+    important step, so the leak no longer happens at the same moment in every measurement.
+  </p>
+  <p>
+    This breaks my attack at its foundation. All my maths assumes that sample number 500 means the
+    same thing in every trace. Now it does not. Averaging traces that are out of step smears the
+    signal away into the noise.
+  </p>
+  <p>
+    But the defence does not remove the leak. It only moves it around. So I lined the traces up
+    first: I found a recognisable pattern in each one and shifted the trace until they all matched.
+    Once they were back in step, the same attack worked again, and the key came out.
+  </p>
+
+  <div class="callout reveal">
+    <span class="callout-label">The lesson</span>
+    <p>
+      A defence that only adds randomness makes an attack more expensive, but it does not stop it. If
+      the leak is still there, you can clean up the data and go again. The defences that hold are the
+      ones that break the link between the secret and what you can measure, such as masking.
+    </p>
+  </div>
+
+  <h2 class="reveal">Related work</h2>
+  <p>
+    Alongside this I studied <strong>PUFs</strong>, or physically unclonable functions. These are
+    circuits that give different answers on every chip because of tiny random differences from
+    manufacturing. The idea is to use them as keys that cannot be copied, since even the maker cannot
+    reproduce one.
+  </p>
+  <p>
+    Using <code>pypuf</code> I simulated 64-bit arbiter and XOR-arbiter PUFs, generated 10,000
+    challenge and response pairs, and looked at how well the simple designs hold up. The attack here
+    is modelling: if you collect enough pairs, you can train a model that predicts the PUF's answers,
+    and you have copied the thing that was supposed to be uncopiable.
+  </p>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>Security depends on real hardware, not just on the algorithm on paper.</li>
+    <li>I am comfortable with lab equipment, noisy measurements, and statistics, not only with simulations.</li>
+    <li>Reporting how much effort an attack needs is more useful than reporting that it succeeded.</li>
+    <li>Understanding how a defence works is what tells you whether you can undo it.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Note</span>
+    <p>
+      Done on lab hardware with firmware supplied by the course, as part of a university module on
+      side-channel security.
+    </p>
+  </div>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>

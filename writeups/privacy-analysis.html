@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finding People in "Anonymous" Data — Frank Githui</title>
+<meta name="description" content="Why removing names does not hide people, and the methods that actually work.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">Privacy · Data Analysis</p>
+  <h1 class="reveal">Finding People in "Anonymous" Data</h1>
+  <p class="lede reveal">
+    Deleting the name column does not make data anonymous. Here is the attack that proves it, and the
+    methods that actually do protect people.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Tools</dt><dd>pandas · NumPy · matplotlib</dd></div>
+    <div><dt>Attacks</dt><dd>Linkage, differencing</dd></div>
+    <div><dt>Defences</dt><dd>Added noise, randomised answers</dd></div>
+    <div><dt>Models</dt><dd>Central and local</dd></div>
+  </dl>
+
+  <h2 class="reveal">Part 1 — The attack</h2>
+  <p>
+    The data set had names and ID numbers, plus details like age, ZIP code, education, and salary.
+    The normal advice is to drop the obvious identifiers and publish the rest:
+  </p>
+
+  <pre><code>adult_data = adult.copy().drop(
+    columns=['Name', 'First Name', 'Last Name', 'SSN'])</code></pre>
+
+  <p>
+    What is left looks harmless. But those remaining columns are what we call
+    <strong>quasi-identifiers</strong>. On their own they identify nobody. Together they often point
+    to exactly one person. Date of birth plus ZIP code is the classic example.
+  </p>
+  <p>
+    So an attacker who knows a few facts about their target, from a public record or just from
+    knowing them personally, can match that against the published data:
+  </p>
+
+  <pre><code>target_row = adult_pii[adult_pii['Name'] == TARGET_NAME]
+
+pd.merge(target_row, adult_data,
+         left_on=['DOB', 'Zip'], right_on=['DOB', 'Zip'])</code></pre>
+
+  <p>
+    If that match returns exactly one row, you have found your person. Every private detail in the
+    published data, including their salary, is now attached to a real name. This is the same method
+    that has been used before to pull individuals out of released medical records, and out of a
+    supposedly anonymous set of film ratings by comparing it to public reviews.
+  </p>
+
+  <h3>Publishing only totals does not fix it</h3>
+  <p>
+    The next idea is to publish averages and totals instead of individual rows. That fails too. Group
+    the data finely enough and some groups contain only one person. Then the "average" is that one
+    person's exact value:
+  </p>
+
+  <pre><code>adult[['Zip', 'Age']].groupby('Zip', as_index=False).mean()</code></pre>
+
+  <p>
+    It gets worse. Even totals over large groups leak, through what is called a
+    <strong>differencing attack</strong>. Ask for the total salary of all staff. Then ask for the
+    total salary of all staff except one named person. Neither question looks sensitive on its own.
+    Subtract one from the other and you have that person's exact salary.
+  </p>
+
+  <h2 class="reveal">Part 2 — What actually works</h2>
+  <p>
+    Differential privacy fixes this at the root. The idea is to add a carefully measured amount of
+    random noise to every answer, so that the answer looks almost the same whether or not any one
+    person is in the data at all.
+  </p>
+  <p>
+    Now the differencing attack fails. Both totals are noisy, so the difference is noisy too, and
+    that noise is bigger than the one salary the attacker was trying to isolate. The important part
+    is that this holds no matter what other information the attacker already has. Simply removing
+    names can never promise that.
+  </p>
+
+  <h3>Removing the need for trust</h3>
+  <p>
+    There is still a catch. This approach needs someone trustworthy to hold everyone's real data and
+    add the noise. Often that is exactly the company you are worried about, such as a platform
+    collecting data from its own users.
+  </p>
+  <p>
+    The local model removes them from the picture. Each person adds noise to their own answer before
+    it ever leaves their device. I implemented <strong>randomised response</strong>, the original
+    method for this, invented for surveys back in 1965.
+  </p>
+  <p>
+    It works like this. You are asked an embarrassing yes-or-no question. You flip a coin in private.
+    Depending on the result, you either answer honestly or you give a fixed answer. Now no single
+    answer proves anything about you, because you can always say the coin decided it. But the
+    researcher still learns the truth about the group, because they know exactly how the coin
+    affects the totals and can cancel it out across thousands of people.
+  </p>
+
+  <div class="callout reveal">
+    <span class="callout-label">The trade-off, measured</span>
+    <p>
+      The local model gives stronger privacy but less accurate results. Noise gets added once per
+      person instead of once per question, so the errors pile up, and only some kinds of questions
+      can be answered at all. Measuring that gap, and how much accuracy you lose for a given level
+      of privacy, was the main analysis work here.
+    </p>
+  </div>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>Real data analysis with pandas and NumPy, aimed at an attacker's question rather than a business report.</li>
+    <li>Understanding why deleting columns fails once an attacker has outside information, and why differential privacy is a different kind of promise.</li>
+    <li>Building privacy methods in both models and measuring what they cost, instead of just claiming they work.</li>
+    <li>The habit of attacking a defence before trusting it.</li>
+  </ul>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>

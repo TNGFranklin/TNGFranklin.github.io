@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading Encrypted Data Without the Key — Frank Githui</title>
+<meta name="description" content="Reading encrypted data using only a server's padding error messages.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">Cryptanalysis</p>
+  <h1 class="reveal">Reading Encrypted Data Without the Key</h1>
+  <p class="lede reveal">
+    The server never showed me the decrypted message. It only said whether the padding was right or
+    wrong. That single yes-or-no answer was enough to read everything.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Target</dt><dd>HTTP decryption endpoint</dd></div>
+    <div><dt>Cipher</dt><dd>AES-CBC, PKCS#7</dd></div>
+    <div><dt>Language</dt><dd>Python 3</dd></div>
+    <div><dt>Key required</dt><dd>None</dd></div>
+  </dl>
+
+  <h2 class="reveal">The setup</h2>
+  <p>
+    The target had a <code>/decrypt</code> page. You sent it an IV and some encrypted data. It tried
+    to decrypt them and told you if the padding at the end looked correct. It never showed you the
+    message itself.
+  </p>
+  <p>
+    That looks safe. You only get one bit of information back, and it is about padding, not about the
+    content. But one bit is enough.
+  </p>
+
+  <h2 class="reveal">Why it breaks</h2>
+  <p>
+    In CBC mode, each block of the message is made by taking the cipher's output and XOR-ing it with
+    the previous block of encrypted data:
+  </p>
+  <pre><code>P[i] = D(C[i]) ⊕ C[i-1]</code></pre>
+  <p>
+    Here is the important part. I fully control <code>C[i-1]</code>, because I am the one sending it.
+    The middle value <code>D(C[i])</code> is fixed by the key. I do not know it, but it never
+    changes. So if I can learn <code>D(C[i])</code>, I get the message for free by XOR-ing it with
+    the real previous block.
+  </p>
+  <p>
+    The server hands me that value. I send a fake previous block and try all 256 possible values for
+    its last byte. For exactly one of them, the last byte of the result becomes <code>0x01</code>,
+    which is valid one-byte padding, and the server says so. Now I know:
+  </p>
+  <pre><code>intermediate[15] = guess ⊕ 0x01</code></pre>
+  <p>
+    That is one byte. To get the next one, I set the last byte so it becomes <code>0x02</code>, then
+    try all 256 values for the second-to-last byte, looking for valid <code>0x02 0x02</code> padding.
+    I repeat this, growing the part I know, until the whole block is done. Sixteen bytes at up to 256
+    tries each is 4,096 requests per block. That is nothing.
+  </p>
+
+  <h2 class="reveal">The code</h2>
+  <p>
+    The main loop works backwards from the last byte. It sets the bytes I already know to the padding
+    value I need, then tries every value for the next unknown byte:
+  </p>
+
+  <pre><code>for pad in range(1, block_size + 1):
+    pad_index = block_size - pad
+
+    for guess in range(256):
+        crafted = bytearray(C_prev)
+
+        # set every byte I already know to the padding value I need now
+        for j in range(pad_index + 1, block_size):
+            crafted[j] = intermediate[j] ^ pad
+
+        crafted[pad_index] = guess
+
+        if validate_ciphertext(server, auth, crafted.hex(), b64(C_cur)):
+            intermediate[pad_index] = guess ^ pad
+            recovered[pad_index]   = intermediate[pad_index] ^ C_prev[pad_index]
+            break</code></pre>
+
+  <p>
+    Two details matter here, and both are easy to get wrong:
+  </p>
+  <ul>
+    <li>
+      <strong>Treat the IV as block zero.</strong> If I put the real IV at the front of my list of
+      blocks, the first block of the message is recovered by the same code as every other block. No
+      special case needed. Attacks that skip this quietly lose the first sixteen bytes.
+    </li>
+    <li>
+      <strong>Strip the padding at the end.</strong> The recovered message still has its PKCS#7
+      padding on it. The last byte tells you how many bytes to remove.
+    </li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">A catch</span>
+    <p>
+      When attacking the last byte, there is a rare second answer that also works. The fake block can
+      accidentally produce valid longer padding, such as <code>0x02 0x02</code>. To be safe, change
+      the second-to-last byte and ask again. If the server still says valid, the padding really was
+      <code>0x01</code>.
+    </p>
+  </div>
+
+  <h2 class="reveal">Result</h2>
+  <p>
+    The tool read the full message from multi-block encrypted data on the live server. You run it
+    from the command line with the IV and the encrypted data as arguments. Speed depended on network
+    delay, not on maths. The cryptography here is cheap. It is the number of requests that costs you.
+  </p>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>One bit of error information is a full break, if that bit depends on the secret data.</li>
+    <li>Giving different errors for different failures is a real bug, not a small detail. The fix is authenticated encryption such as AES-GCM, not a vaguer error message.</li>
+    <li>Knowing the maths behind a cipher mode is what turns "the server said no" into a way to read everything.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Note</span>
+    <p>
+      This was done against a lab server set up for the exercise. The server address and login token
+      have been removed from the code above.
+    </p>
+  </div>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>

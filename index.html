@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frank Githui — Cybersecurity</title>
+<meta name="description" content="Cybersecurity analyst and MSc candidate in Budapest. Offensive security, applied cryptography, side-channel analysis, and privacy engineering.">
+<meta property="og:title" content="Frank Githui — Cybersecurity">
+<meta property="og:description" content="Offensive security, cryptography, and privacy. Writeups with real code.">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="projects.html">Projects</a>
+      <a href="about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow reveal">Cybersecurity Analyst · Budapest</p>
+    <h1 class="reveal">Frank <span class="grad">Githui</span></h1>
+    <p class="lede reveal">
+      I find weaknesses in systems and write down how I found them. My work covers
+      <strong>offensive security</strong>, <strong>cryptography</strong>, and
+      <strong>privacy</strong>. I have broken encryption on a live web server, and I have pulled a
+      secret key out of a chip by measuring its power use. I am doing an MSc in Computer Science
+      (Cybersecurity). Before that I worked as a red team analyst, testing client systems.
+    </p>
+    <div class="hero-meta reveal">
+      <span>MSc Cybersecurity · ELTE</span>
+      <span>Ex-Red Team Analyst</span>
+      <span>Budapest, Hungary</span>
+    </div>
+
+    <div class="terminal reveal">
+      <div class="terminal-bar">
+        <i></i><i></i><i></i>
+        <span>~/portfolio — zsh</span>
+      </div>
+      <div class="terminal-body"></div>
+    </div>
+
+    <div class="cta-row reveal">
+      <a class="btn btn-primary" href="projects.html">View technical work</a>
+      <a class="btn" href="about.html">Background</a>
+      <a class="btn" href="https://github.com/TNGFranklin">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<hr class="rule">
+
+<main class="wrap">
+
+  <section>
+    <div class="section-head reveal">
+      <h2>Selected work</h2>
+      <span class="count">7 writeups</span>
+    </div>
+
+    <div class="cards">
+
+      <article class="card reveal">
+        <h3><a href="writeups/padding-oracle.html">Reading Encrypted Data Without the Key</a></h3>
+        <p>
+          The server only told me if the padding was right or wrong. That one clue was enough to read
+          the whole encrypted message, without ever knowing the key.
+        </p>
+        <div class="card-foot">
+          <span class="tag tag-cat">Cryptanalysis</span>
+          <span class="tag">Python</span>
+          <a class="card-link" href="writeups/padding-oracle.html">Read →</a>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <h3><a href="writeups/side-channel-dpa.html">Finding AES Keys by Watching Power</a></h3>
+        <p>
+          A chip uses slightly different power depending on the data it handles. I measured that power
+          and used it to work out the secret AES key, then beat the defence added to stop me.
+        </p>
+        <div class="card-foot">
+          <span class="tag tag-cat">Side Channel</span>
+          <span class="tag">ChipWhisperer</span>
+          <a class="card-link" href="writeups/side-channel-dpa.html">Read →</a>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <h3><a href="writeups/zkp-merkle.html">Zero-Knowledge Membership Proofs</a></h3>
+        <p>
+          A system where you can prove you are on an approved list without saying who you are. It also
+          stops you from using the same proof twice.
+        </p>
+        <div class="card-foot">
+          <span class="tag tag-cat">Applied Crypto</span>
+          <span class="tag">Circom · Solidity</span>
+          <a class="card-link" href="writeups/zkp-merkle.html">Read →</a>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <h3><a href="writeups/mobile-privacy-audit.html">Privacy Theatre in Crypto Wallets</a></h3>
+        <p>
+          I watched the network traffic of a crypto wallet app on a phone I controlled, to compare what
+          the privacy policy promises with what the app really sends out.
+        </p>
+        <div class="card-foot">
+          <span class="tag tag-cat">Mobile · Research</span>
+          <span class="tag">Burp Suite</span>
+          <a class="card-link" href="writeups/mobile-privacy-audit.html">Read →</a>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <h3><a href="writeups/privacy-analysis.html">Finding People in "Anonymous" Data</a></h3>
+        <p>
+          Removing names from a data set does not hide people. I showed how to find someone anyway, then
+          built the methods that do work, and measured what they cost in accuracy.
+        </p>
+        <div class="card-foot">
+          <span class="tag tag-cat">Privacy · Data</span>
+          <span class="tag">pandas · NumPy</span>
+          <a class="card-link" href="writeups/privacy-analysis.html">Read →</a>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <h3><a href="writeups/aes-keyspace-search.html">Cracking a Five-Digit Password</a></h3>
+        <p>
+          An encrypted file used strong AES-256, but the password was only five digits. I copied how the
+          key was built and tried every password until the file opened.
+        </p>
+        <div class="card-foot">
+          <span class="tag tag-cat">Cryptanalysis</span>
+          <span class="tag">PyCryptodome</span>
+          <a class="card-link" href="writeups/aes-keyspace-search.html">Read →</a>
+        </div>
+      </article>
+
+      <article class="card reveal">
+        <h3><a href="writeups/web-exploitation.html">Breaking Into Lab Machines</a></h3>
+        <p>
+          Four lab machines taken over from start to finish: find the services, get in, then become the
+          admin user. Covers file reading bugs, filter bypass, fake login tokens, and cracking passwords.
+        </p>
+        <div class="card-foot">
+          <span class="tag tag-cat">Offensive Security</span>
+          <span class="tag">Linux</span>
+          <a class="card-link" href="writeups/web-exploitation.html">Read →</a>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section class="narrow">
+    <div class="section-head reveal"><h2>How I work</h2></div>
+    <p class="reveal">
+      My work follows the same four steps every time. First I learn how the system is meant to work.
+      Then I look for the point where it does not work that way. Then I prove the problem is real.
+      Then I write it down clearly, so someone else can repeat my steps and fix it.
+    </p>
+    <p class="reveal">
+      At my last job this meant testing client networks, firewalls, databases, and mobile apps. I
+      also ran fake phishing emails to see how staff would react, and checked systems against the
+      NIST CSF, ISO 27001, and ITGC standards. Next to that I keep doing research in cryptography
+      and privacy, because many of the best problems sit below the app layer.
+    </p>
+    <p class="reveal">
+      Each writeup on this site has the same four parts: what the target was, how I attacked it,
+      the technical detail with real code, and what I got in the end.
+    </p>
+  </section>
+
+  <hr class="rule">
+
+  <section class="narrow">
+    <div class="section-head reveal"><h2>Get in touch</h2></div>
+    <p class="reveal">
+      I am looking for work in Europe in security engineering, penetration testing, or cryptography.
+    </p>
+    <div class="cta-row reveal">
+      <a class="btn btn-primary" href="mailto:githuifrank@gmail.com">githuifrank@gmail.com</a>
+      <a class="btn" href="https://linkedin.com/in/frank-githui-322295231">LinkedIn</a>
+      <a class="btn" href="https://github.com/TNGFranklin">GitHub</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="projects.html">Projects</a></span>
+    <span><a href="about.html">About</a></span>
+  </div>
+</footer>
+
+<script src="assets/main.js"></script>
+</body>
+</html>

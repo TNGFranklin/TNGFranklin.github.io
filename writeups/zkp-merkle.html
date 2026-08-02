@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zero-Knowledge Membership Proofs — Frank Githui</title>
+<meta name="description" content="Proving you are on an approved list without saying who you are, and only being able to do it once.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">Applied Cryptography</p>
+  <h1 class="reveal">Zero-Knowledge Membership Proofs</h1>
+  <p class="lede reveal">
+    Prove you are on an approved list without saying which member you are. And make sure you can only
+    do it once, without anyone keeping a record of who has already acted.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Proof system</dt><dd>Groth16</dd></div>
+    <div><dt>Hash</dt><dd>Poseidon</dd></div>
+    <div><dt>List size</dt><dd>Up to 65,536</dd></div>
+    <div><dt>Built with</dt><dd>Circom · snarkjs · Solidity</dd></div>
+  </dl>
+
+  <h2 class="reveal">The problem</h2>
+  <p>
+    There is a conflict at the heart of anonymous membership. If you show an ID to prove you belong,
+    you have just told everyone who you are. If you show nothing, then one person can act a thousand
+    times and nobody can stop them.
+  </p>
+  <p>
+    The system needs both things at once: nobody learns who you are, and nobody can act twice.
+  </p>
+
+  <h2 class="reveal">How it is built</h2>
+  <p>
+    Every approved member has a private number, their <code>secret</code>. That secret is hashed into
+    a public value called a leaf. All the leaves are combined into a tree, and the tree is squeezed
+    down into one single value at the top, called the root. The root is the only thing stored in
+    public.
+  </p>
+
+  <pre><code>leaf      = Poseidon(secret, 0)
+nullifier = Poseidon(secret, 1)
+root      = the top of the tree of all leaves   // public, on the blockchain</code></pre>
+
+  <p>
+    Notice the <code>0</code> and the <code>1</code> in those two lines. The leaf and the nullifier
+    come from the same secret, but the extra number keeps them separate. Because of it, neither value
+    tells you anything about the other, but both are still tied to the same person.
+  </p>
+  <p>
+    I used Poseidon instead of SHA-256 because of how these proofs work. A proof system does its
+    maths in a special way, and Poseidon is designed to fit that maths cheaply. SHA-256 does the same
+    job but costs hundreds of times more work inside a proof.
+  </p>
+
+  <h3>What the proof actually says</h3>
+  <div class="table-scroll reveal">
+    <table>
+      <thead><tr><th>Value</th><th>Public?</th><th>What it is for</th></tr></thead>
+      <tbody>
+        <tr><td><code>secret</code></td><td>Private</td><td>Your credential</td></tr>
+        <tr><td><code>pathElements</code></td><td>Private</td><td>The other hashes needed to climb the tree</td></tr>
+        <tr><td><code>pathIndices</code></td><td>Private</td><td>Left or right at each step. Would reveal your position</td></tr>
+        <tr><td><code>root</code></td><td>Public</td><td>Ties the proof to the approved list</td></tr>
+        <tr><td><code>nullifier</code></td><td>Public</td><td>Lets the system spot a repeat</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    The proof rebuilds your leaf from your secret, climbs sixteen steps up the tree, and checks that
+    it arrives at the public root. It also checks that the public nullifier really was made from your
+    secret. Anyone can verify all this. What they learn is only that <em>somebody</em> on the list
+    made the proof, and nothing more.
+  </p>
+  <p>
+    The path directions must stay private. If you published them, you would be telling everyone your
+    exact position in the tree, which never changes. That is a permanent nickname, and your anonymity
+    is gone.
+  </p>
+
+  <h3>The blockchain side</h3>
+  <pre><code>uint256 root;
+mapping(uint256 =&gt; bool) nullifierUsed;</code></pre>
+  <p>
+    The smart contract stores only two things. When you submit a proof it checks the proof against
+    the stored root, checks that your nullifier has not been seen before, marks it as used, and then
+    does the action. If you try again, it fails, because your secret always produces the same
+    nullifier. You cannot make a different one.
+  </p>
+
+  <div class="callout reveal">
+    <span class="callout-label">A design detail</span>
+    <p>
+      If the list does not fill the tree completely, the empty slots are filled with a fixed set of
+      zero hashes rather than copies of real members. This keeps the root well defined for any list
+      size, and makes sure an empty slot can never be mistaken for a real member.
+    </p>
+  </div>
+
+  <h2 class="reveal">Building it</h2>
+  <p>
+    Four separate tools have to agree perfectly here: Circom writes the proof rules, snarkjs does the
+    setup and makes the proofs, solc compiles the checking contract, and Python ties it all together
+    to deploy and test.
+  </p>
+  <p>
+    Most of the real difficulty is where these tools meet. If a number is stored slightly differently
+    in the Python code than the proof rules expect, the proof fails. You get no error message that
+    tells you why. So I wrote a file of known-good test values that both sides check against. That
+    way I could change one part and immediately see which side was wrong.
+  </p>
+  <p>
+    The final version deploys to a real network and runs the whole thing end to end: build the tree,
+    make the proof, deploy the contract, verify on chain, then try the same proof again and confirm
+    it gets rejected.
+  </p>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>Turning a written specification into working proof rules, where every assumption has to be spelled out.</li>
+    <li>Choosing building blocks based on what they cost in the system you are using, not on what is familiar.</li>
+    <li>Thinking carefully about what each public value gives away. Getting the nullifier right and the path wrong is the difference between being anonymous and having a permanent nickname.</li>
+    <li>Getting four different tools to work together all the way to a live deployment, not just a passing test.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Note</span>
+    <p>
+      Built as a university project on zero-knowledge proofs. Testing was done on a local blockchain
+      and a public test network.
+    </p>
+  </div>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>
