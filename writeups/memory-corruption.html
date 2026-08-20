@@ -43,8 +43,8 @@
   <dl class="meta-grid reveal">
     <div><dt>Languages</dt><dd>C / C++</dd></div>
     <div><dt>Bug classes</dt><dd>Stack, heap, off-by-one, format string, integer</dd></div>
+    <div><dt>Toolchain</dt><dd>GDB + GEF · pwntools</dd></div>
     <div><dt>Defences</dt><dd>NX/DEP · ASLR · stack canaries</dd></div>
-    <div><dt>Finding them</dt><dd>Fuzzing · sanitizers</dd></div>
   </dl>
 
   <h2 class="reveal">Why this still matters</h2>
@@ -111,6 +111,65 @@
     simpler path.
   </p>
 
+  <h2 class="reveal">Doing it in a debugger</h2>
+  <p>
+    The tools for this work are <strong>GDB</strong> with the <strong>GEF</strong> extension, and
+    <strong>pwntools</strong> for building the payload. GEF is what makes GDB usable for this: it
+    shows registers, flags, disassembly and the stack side by side, so you can see the moment a
+    value you control lands somewhere it should not.
+  </p>
+  <p>
+    The first exercise is deliberately tiny — a ten-byte stack buffer and a <code>strcpy</code> with
+    no length check:
+  </p>
+
+  <pre><code>void handle_input(char* input) {
+    char buf[10];
+    strcpy(buf, input);   // copies until NUL, never checks the size
+}</code></pre>
+
+  <p>
+    It gets compiled with the protections turned off, so the underlying behaviour is visible before
+    the mitigations are put back:
+  </p>
+
+  <pre><code>gcc example.c -o overflow -fno-stack-protector -g</code></pre>
+
+  <h3>Finding the offset</h3>
+  <p>
+    Flooding the buffer with identical bytes proves it overflows, but not where the important bytes
+    land. Filling it with a pattern that never repeats does both at once. Whatever fragment ends up
+    in the register tells you the exact distance from the start of the buffer:
+  </p>
+
+  <pre><code>gef&gt; pattern create 200
+gef&gt; run aaaaaaaabaaaaaaacaaaaaaad...
+gef&gt; pattern search $rsp
+[+] Found at offset 120</code></pre>
+
+  <p>
+    Then you verify it. Send exactly 120 bytes of padding followed by six known bytes, and if the
+    instruction pointer reads back as <code>0x414141414141</code>, you control it. That number is
+    the whole result — everything after it is deciding what address to put there.
+  </p>
+
+  <div class="callout reveal">
+    <span class="callout-label">A detail worth knowing</span>
+    <p>
+      On 64-bit, the first attempt often looks like a failure. You flood the buffer, the stack
+      pointer fills with your bytes, and the instruction pointer is untouched — which on a 32-bit
+      system it would not be. The address space is wider and the calling convention differs, so
+      reaching the saved return address takes more care. Reading that as "no bug here" is the
+      mistake.
+    </p>
+  </div>
+
+  <p>
+    <strong>pwntools</strong> handles the rest: spawning the process or connecting to a remote
+    service, assembling raw instructions from Python, packing addresses in the right byte order, and
+    building return-oriented chains — without hand-writing the boilerplate each time.
+  </p>
+
   <h2 class="reveal">The defences, and what each one actually stops</h2>
   <ul>
     <li><strong>NX / DEP</strong> marks memory as either writable or executable, never both. Data an attacker writes cannot be run as code. This is what forced attackers toward reusing existing code.</li>
@@ -135,7 +194,7 @@
     <li><strong>Coverage-guided fuzzing</strong> — measure which code each input reaches, keep the inputs that reach something new, and mutate from those. This is what made fuzzing genuinely effective, because it lets the fuzzer find its own way into the program instead of guessing.</li>
   </ul>
   <p>
-    Fuzzing pairs with <strong>sanitizers</strong> — AddressSanitizer, UndefinedBehaviorSanitizer,
+    Alongside the debugger, fuzzing pairs with <strong>sanitizers</strong> — AddressSanitizer, UndefinedBehaviorSanitizer,
     Valgrind — which instrument the program so that memory errors are caught at the moment they
     happen rather than whenever the damage eventually causes a crash. Without them, a fuzzer misses
     every bug that corrupts memory quietly. With them, the fuzzer finds the bug and points at the
@@ -165,6 +224,7 @@
     <li>I can reason about memory at the level where these bugs live — stack frames, calling conventions, and what the program keeps next to your data.</li>
     <li>I know what each mitigation actually prevents, which is what tells you whether a given bug is exploitable or merely a crash.</li>
     <li>I understand how these bugs are found at scale, and why fuzzing without sanitizers misses most of them.</li>
+    <li>I work these in GDB with GEF and build payloads with pwntools, rather than only reading about them.</li>
     <li>I can advise on the fix as well as the finding.</li>
   </ul>
 
