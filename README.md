@@ -11,12 +11,14 @@ Live at **https://tngfranklin.github.io**
 | `index.html` | Intro and featured writeups |
 | `projects.html` | All projects, filterable by category |
 | `about.html` | Background, experience, skills |
-| `writeups/` | Nine technical writeups |
+| `writeups/` | Eleven technical writeups |
 
 ## Writeups
 
 - **Attacking Machine Learning Models** — poisoning, backdoors, evasion, sponge attacks
 - **Red Teaming and Phishing Simulations** — authorised social engineering
+- **Taking Apart a Banking Application** — .NET reverse engineering
+- **Buffer Overflows and Memory Corruption** — memory safety and fuzzing
 - **Mobile Application Penetration Testing** — Android static and dynamic analysis
 - **Reading Encrypted Data Without the Key** — CBC padding-oracle attack
 - **Finding AES Keys by Watching Power** — differential power analysis on real hardware

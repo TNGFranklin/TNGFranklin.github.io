@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buffer Overflows and Memory Corruption — Frank Githui</title>
+<meta name="description" content="How memory corruption bugs turn into control of a program, the defences against them, and how the bugs get found.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">Memory Safety</p>
+  <h1 class="reveal">Buffer Overflows and Memory Corruption</h1>
+  <p class="lede reveal">
+    Writing past the end of a buffer does not just corrupt data. It can overwrite the note the
+    program keeps about where to go next, and at that point the attacker decides what runs.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Languages</dt><dd>C / C++</dd></div>
+    <div><dt>Bug classes</dt><dd>Stack, heap, off-by-one, format string, integer</dd></div>
+    <div><dt>Defences</dt><dd>NX/DEP · ASLR · stack canaries</dd></div>
+    <div><dt>Finding them</dt><dd>Fuzzing · sanitizers</dd></div>
+  </dl>
+
+  <h2 class="reveal">Why this still matters</h2>
+  <p>
+    C accounts for roughly half of all reported open-source security vulnerabilities. Not because C
+    programmers are careless, but because of what the language is: direct pointer arithmetic, raw
+    memory access, no automatic bounds checking, and manual memory management. It gives you full
+    control and almost no safety net.
+  </p>
+  <p>
+    That combination is also why C sits underneath nearly everything &mdash; operating systems,
+    network stacks, embedded devices, cryptographic libraries. The bugs are old, well understood,
+    and still shipping.
+  </p>
+
+  <h2 class="reveal">How a program remembers where it was</h2>
+  <p>
+    To understand the attack you have to understand the stack. When a function is called, the program
+    pushes a frame onto the stack containing the arguments, space for local variables, and
+    &mdash; critically &mdash; the return address, which is where execution continues once the
+    function finishes.
+  </p>
+  <p>
+    Local buffers live in that same frame. If the program copies more data into a buffer than it has
+    room for, the extra bytes do not vanish. They keep writing into whatever is next in memory, and
+    what is next is eventually the return address. Overwrite that and the function does not return
+    where it was supposed to. It returns wherever the attacker's data says.
+  </p>
+  <p>
+    That is the whole idea. The bug is a memory error; the consequence is control of execution.
+  </p>
+
+  <h3>The main bug classes</h3>
+  <div class="table-scroll reveal">
+    <table>
+      <thead><tr><th>Class</th><th>What goes wrong</th></tr></thead>
+      <tbody>
+        <tr><td>Stack overflow</td><td>Writing past a local buffer reaches saved control data such as the return address</td></tr>
+        <tr><td>Heap overflow</td><td>Writing past a heap allocation corrupts the bookkeeping the allocator relies on</td></tr>
+        <tr><td>Off-by-one</td><td>A loop or size calculation that is wrong by exactly one byte, which is often enough</td></tr>
+        <tr><td>Format string</td><td>User input used as a format specifier, letting an attacker read and write memory</td></tr>
+        <tr><td>Integer overflow</td><td>A size calculation wraps around, so a correct-looking bounds check passes and a far too small buffer gets allocated</td></tr>
+        <tr><td>Use-after-free</td><td>Memory is used after being released, once something attacker-controlled may occupy it</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Integer overflow deserves attention because it is the least obvious. The bounds check is there,
+    it is written correctly, and it still passes &mdash; because the arithmetic feeding it wrapped
+    around before the comparison happened.
+  </p>
+
+  <h2 class="reveal">Redirecting execution</h2>
+  <p>
+    Once memory can be corrupted, the next step is turning that into control. The direct route is
+    overwriting the return address. Where a function pointer is stored in reachable memory,
+    overwriting that works too.
+  </p>
+  <p>
+    Modern systems make injecting new code hard, so the established technique is to reuse what is
+    already there: chain together fragments of the program's own existing instructions to build the
+    behaviour you want, without introducing any new code at all. That is the idea behind
+    return-oriented programming, and it exists specifically because the defence below closed the
+    simpler path.
+  </p>
+
+  <h2 class="reveal">The defences, and what each one actually stops</h2>
+  <ul>
+    <li><strong>NX / DEP</strong> marks memory as either writable or executable, never both. Data an attacker writes cannot be run as code. This is what forced attackers toward reusing existing code.</li>
+    <li><strong>ASLR</strong> randomises where things sit in memory each run, so an attacker cannot rely on a fixed address. It does not fix the bug; it makes the address unpredictable — which is why an information leak that reveals one real address is so valuable, since it can undo the whole protection.</li>
+    <li><strong>Stack canaries</strong> place a known value between the local buffers and the saved return address. Before returning, the program checks it is unchanged. A straightforward overflow has to write through the canary to reach the return address, so the program detects the corruption and stops.</li>
+  </ul>
+  <p>
+    Each of these raises the cost rather than removing the bug, and they matter most in combination.
+    None of them makes unsafe code safe.
+  </p>
+
+  <h2 class="reveal">Finding the bugs</h2>
+  <p>
+    Most memory corruption is found by machines, not by reading code. The main approach is fuzzing:
+    feed a program huge volumes of malformed input and watch for crashes, because in C a crash is
+    usually a memory bug wearing a disguise.
+  </p>
+  <ul>
+    <li><strong>Black-box fuzzing</strong> — throw input at the program with no view inside it. Simple, and it wastes most of its effort on inputs rejected immediately.</li>
+    <li><strong>White-box fuzzing</strong> — use knowledge of the program's structure to build inputs that reach deeper paths.</li>
+    <li><strong>Grammar-based fuzzing</strong> — generate input that is structurally valid, so it survives parsing and reaches the logic behind it. Essential for anything reading a defined format.</li>
+    <li><strong>Coverage-guided fuzzing</strong> — measure which code each input reaches, keep the inputs that reach something new, and mutate from those. This is what made fuzzing genuinely effective, because it lets the fuzzer find its own way into the program instead of guessing.</li>
+  </ul>
+  <p>
+    Fuzzing pairs with <strong>sanitizers</strong> — AddressSanitizer, UndefinedBehaviorSanitizer,
+    Valgrind — which instrument the program so that memory errors are caught at the moment they
+    happen rather than whenever the damage eventually causes a crash. Without them, a fuzzer misses
+    every bug that corrupts memory quietly. With them, the fuzzer finds the bug and points at the
+    exact line.
+  </p>
+
+  <h2 class="reveal">Writing code that does not have these bugs</h2>
+  <p>
+    The defensive side is less dramatic and more effective: validate input lengths, check bounds
+    explicitly, use the safer library functions that take a destination size, and turn on the
+    compiler's hardening flags. Where the choice is available, a memory-safe language removes the
+    entire bug class rather than mitigating it.
+  </p>
+
+  <div class="callout reveal">
+    <span class="callout-label">Disclosure</span>
+    <p>
+      Finding a memory corruption bug in someone else's software carries an obligation. The
+      responsible path is a private report to the vendor, a reasonable window to fix it, and
+      publication afterwards. Understanding that process is part of the skill, not an optional
+      extra around it.
+    </p>
+  </div>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>I can reason about memory at the level where these bugs live — stack frames, calling conventions, and what the program keeps next to your data.</li>
+    <li>I know what each mitigation actually prevents, which is what tells you whether a given bug is exploitable or merely a crash.</li>
+    <li>I understand how these bugs are found at scale, and why fuzzing without sanitizers misses most of them.</li>
+    <li>I can advise on the fix as well as the finding.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Note</span>
+    <p>
+      This reflects the memory corruption and exploit-development module of my MSc penetration
+      testing course, which covers exploitation concepts and shellcode theory without live payload
+      development. No exploit code is published here.
+    </p>
+  </div>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>

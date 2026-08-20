@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taking Apart a Banking Application — Frank Githui</title>
+<meta name="description" content="Decompiling a .NET desktop application to find how it authenticates, then using that against it.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scan"></div>
+</div>
+<div class="progress" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="../index.html"><span class="dot"></span>frank_githui</a>
+    <div class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../about.html">About</a>
+      <a href="mailto:githuifrank@gmail.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap narrow writeup">
+
+  <a class="back" href="../projects.html">← All projects</a>
+
+  <p class="eyebrow reveal">Reverse Engineering</p>
+  <h1 class="reveal">Taking Apart a Banking Application</h1>
+  <p class="lede reveal">
+    I was given a locked archive and a hint. Inside was a desktop banking client. Decompiling it
+    showed me exactly how it talked to its server, and that was enough to read every customer's
+    balance.
+  </p>
+
+  <dl class="meta-grid reveal">
+    <div><dt>Target</dt><dd>.NET desktop application</dd></div>
+    <div><dt>Decompiler</dt><dd>dnSpy</dd></div>
+    <div><dt>Interception</dt><dd>Fiddler</dd></div>
+    <div><dt>Also used</dt><dd>John the Ripper · ffuf · sqlmap</dd></div>
+  </dl>
+
+  <h2 class="reveal">Getting into the archive</h2>
+  <p>
+    The starting point was a password-protected zip file and a letter naming the person it was meant
+    for. Nothing else.
+  </p>
+  <p>
+    The letter was the clue. Rather than guessing passwords, I built a wordlist of every date of
+    birth from 1920 to 2025 in the format the letter used, converted the archive into a crackable
+    hash, and ran John the Ripper against the list. It matched, and the archive opened. Turning a
+    password guess into a small, structured search is usually faster than any general wordlist.
+  </p>
+
+  <h2 class="reveal">A file that was not supposed to be there</h2>
+  <p>
+    Inside was a Windows application, and alongside it a <code>.DS_Store</code> file — a macOS
+    folder-layout artefact that someone had packaged by accident. Those files list the names of
+    everything that was in the folder when it was created, including files that are no longer there.
+  </p>
+  <p>
+    I wrote a small parser to pull the names out. The format stores strings as UTF-16, so a plain
+    <code>strings</code> command misses most of them:
+  </p>
+
+  <pre><code># .DS_Store keeps names as UTF-16LE, so scan for both encodings
+ascii_runs = re.findall(br"[ -~]{4,}", data)
+utf16_runs = re.findall(br"(?:[ -~]\x00){4,}", data)</code></pre>
+
+  <p>
+    It recovered a filename that pointed straight at a credentials file. A leftover artefact from
+    the developer's machine gave away part of the answer before I had touched the application.
+  </p>
+
+  <h2 class="reveal">Reading the application</h2>
+  <p>
+    The application shipped as a .NET assembly, which means it is not really compiled the way a C
+    program is. It is bytecode that carries its own type and method names, so a decompiler can
+    rebuild readable source. I opened it in dnSpy and worked through the form logic until I
+    understood what the program actually did.
+  </p>
+  <p>
+    That gave me three things a black-box tester would have had to guess at:
+  </p>
+  <ul>
+    <li><strong>The password is hashed on the client</strong>, using a key held inside the application, before anything is sent.</li>
+    <li><strong>Login returns a token</strong>, and that token is what authorises later requests.</li>
+    <li><strong>The token expires after 300 seconds</strong>, a detail sitting in code that would have looked like random failure from the outside.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Why this is the whole point</span>
+    <p>
+      Anything shipped to the user is readable by the user. The key used to hash that password was
+      inside the file on my own disk. Decompiling turned an unknown protocol into a documented one,
+      and every step after this depended on it.
+    </p>
+  </div>
+
+  <h2 class="reveal">Finding the username</h2>
+  <p>
+    The credentials file gave me a password but no username. I knew the account holder's name from
+    the letter, so I generated a wordlist of every common way an organisation turns a person's name
+    into a login — first.last, initial plus surname, surname first, and the rest — and worked
+    through it until one was accepted.
+  </p>
+
+  <h2 class="reveal">The traffic problem</h2>
+  <p>
+    Next I wanted to see the requests. Directory discovery with <strong>ffuf</strong> against the
+    host revealed two endpoints, <code>/login</code> and <code>/data</code>, but calling them
+    directly got me nowhere. I needed to watch the real client.
+  </p>
+  <p>
+    Burp Suite failed. The application checks the server's X.509 certificate and refuses to continue
+    when a proxy sits in the middle, so the connection simply died. This is the same wall as
+    certificate pinning on mobile, and it is where a lot of desktop testing stops.
+  </p>
+  <p>
+    Fiddler got through, and with traffic finally visible I could confirm what the decompiled code
+    had already told me: the hashed password going out, the token coming back, and that same token
+    being presented to <code>/data</code> to fetch balances.
+  </p>
+
+  <h2 class="reveal">What the server did wrong</h2>
+  <p>
+    Now that I could build valid authenticated requests, I tested the <code>/data</code> endpoint for
+    injection, and it was vulnerable. Using sqlmap through the authenticated path, I extracted the
+    user table — account names, password hashes, and balances for every customer, not only the one I
+    had logged in as.
+  </p>
+  <p>
+    The first extraction came back misaligned, with values not matching across columns, so I reran it
+    with different techniques until the rows were consistent. Believing the first output a tool gives
+    you is how findings turn out to be wrong.
+  </p>
+  <p>
+    From there I cracked the recovered hashes offline and got working passwords for two administrator
+    accounts, then totalled the balances held across specific customers to show the scale of what was
+    exposed.
+  </p>
+
+  <h2 class="reveal">Where it stopped</h2>
+  <p>
+    I did not capture the final flag. Reaching it needed code execution on the host, and I tried
+    several routes without success: local file inclusion through path traversal, log poisoning, and
+    uploading a shell through the database. None of them landed.
+  </p>
+  <p>
+    Recording that matters. A report that only lists what worked is not an accurate picture of the
+    target, and the paths that failed tell a defender which of their controls are actually holding.
+  </p>
+
+  <h2 class="reveal">What this shows</h2>
+  <ul class="takeaways reveal">
+    <li>Decompiling a .NET binary and reading it well enough to rebuild an undocumented protocol.</li>
+    <li>Writing my own tooling when nothing off the shelf fits — the date wordlist and the .DS_Store parser were both a few lines that unlocked a whole stage.</li>
+    <li>Working around client-side certificate checks, and knowing to change tool rather than give up.</li>
+    <li>Chaining it end to end: locked archive, leftover artefact, decompilation, authentication, injection, offline cracking.</li>
+    <li>Reporting the failures next to the successes.</li>
+  </ul>
+
+  <div class="callout reveal">
+    <span class="callout-label">Note</span>
+    <p>
+      Done against a deliberately vulnerable application built for a university penetration testing
+      course. Account names, recovered passwords, and host details are deliberately left out.
+    </p>
+  </div>
+
+  <hr class="rule">
+  <a class="back" href="../projects.html">← All projects</a>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Frank Githui</span>
+    <span class="spacer"><a href="../index.html">Home</a></span>
+    <span><a href="../projects.html">Projects</a></span>
+  </div>
+</footer>
+
+<script src="../assets/main.js"></script>
+</body>
+</html>

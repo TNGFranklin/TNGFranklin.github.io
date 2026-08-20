@@ -48,6 +48,7 @@
     <button class="filter" data-filter="ai" aria-pressed="false">AI Security</button>
     <button class="filter" data-filter="mobile" aria-pressed="false">Mobile</button>
     <button class="filter" data-filter="redteam" aria-pressed="false">Red Team</button>
+    <button class="filter" data-filter="reversing" aria-pressed="false">Reverse Engineering</button>
     <button class="filter" data-filter="crypto" aria-pressed="false">Cryptography</button>
     <button class="filter" data-filter="privacy" aria-pressed="false">Privacy</button>
     <button class="filter" data-filter="data" aria-pressed="false">Data Analysis</button>
@@ -56,7 +57,7 @@
 
   <div class="section-head reveal">
     <h2 class="reveal">Work</h2>
-    <span class="count" data-count>12 projects</span>
+    <span class="count" data-count>14 projects</span>
   </div>
 
   <div class="cards">
@@ -88,6 +89,36 @@
         <span class="tag">GoPhish</span>
         <span class="tag">Social Engineering</span>
         <a class="card-link" href="writeups/red-team-phishing.html">Writeup →</a>
+      </div>
+    </article>
+
+    <article class="card reveal" data-categories="reversing offensive">
+      <h3><a href="writeups/reverse-engineering.html">Taking Apart a Banking Application</a></h3>
+      <p>
+        Cracked a locked archive, recovered a hidden filename from a leftover .DS_Store with a parser
+        I wrote, decompiled the .NET client in dnSpy to reconstruct its login protocol, bypassed its
+        certificate checks with Fiddler, then extracted the customer database through SQL injection.
+      </p>
+      <div class="card-foot">
+        <span class="tag tag-cat">Reverse Engineering</span>
+        <span class="tag">dnSpy</span>
+        <span class="tag">Fiddler</span>
+        <a class="card-link" href="writeups/reverse-engineering.html">Writeup &rarr;</a>
+      </div>
+    </article>
+
+    <article class="card reveal" data-categories="reversing offensive">
+      <h3><a href="writeups/memory-corruption.html">Buffer Overflows and Memory Corruption</a></h3>
+      <p>
+        Stack and heap overflows, off-by-one, format string and integer bugs; how each becomes
+        control-flow hijacking; what NX, ASLR and stack canaries really prevent; and finding the bugs
+        with coverage-guided fuzzing and sanitizers.
+      </p>
+      <div class="card-foot">
+        <span class="tag tag-cat">Memory Safety</span>
+        <span class="tag">C / C++</span>
+        <span class="tag">Fuzzing</span>
+        <a class="card-link" href="writeups/memory-corruption.html">Writeup &rarr;</a>
       </div>
     </article>
 
