@@ -11,10 +11,11 @@ Live at **https://tngfranklin.github.io**
 | `index.html` | Intro and featured writeups |
 | `projects.html` | All projects, filterable by category |
 | `about.html` | Background, experience, skills |
-| `writeups/` | Eleven technical writeups |
+| `writeups/` | Twelve technical writeups |
 
 ## Writeups
 
+- **Vulnerability Assessment and Penetration Testing** — professional client engagements
 - **Attacking Machine Learning Models** — poisoning, backdoors, evasion, sponge attacks
 - **Red Teaming and Phishing Simulations** — authorised social engineering
 - **Taking Apart a Banking Application** — .NET reverse engineering

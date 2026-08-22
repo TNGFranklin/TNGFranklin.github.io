@@ -45,6 +45,7 @@
   <div class="filters reveal">
     <button class="filter" data-filter="all" aria-pressed="true">All</button>
     <button class="filter" data-filter="offensive" aria-pressed="false">Offensive Security</button>
+    <button class="filter" data-filter="vapt" aria-pressed="false">VAPT</button>
     <button class="filter" data-filter="ai" aria-pressed="false">AI Security</button>
     <button class="filter" data-filter="mobile" aria-pressed="false">Mobile</button>
     <button class="filter" data-filter="redteam" aria-pressed="false">Red Team</button>
@@ -221,18 +222,19 @@
       </div>
     </article>
 
-    <article class="card reveal" data-categories="redteam offensive">
-      <h3>Security Testing for Clients</h3>
+    <article class="card reveal" data-categories="vapt offensive redteam">
+      <h3><a href="writeups/vapt.html">Vulnerability Assessment &amp; Penetration Testing</a></h3>
       <p>
-        Paid security testing for real clients. I tested networks, firewalls, databases, routers, and
-        data centres, both from outside and inside. I also tested mobile apps, ran fake phishing
-        campaigns, and audited systems against NIST CSF, ISO 27001, and ITGC.
+        Paid engagements against client networks, firewalls, databases, routers and data centres,
+        tested from outside and inside. Every finding validated by hand, then reported with business
+        impact and remediation. Included audits against NIST CSF, ISO 27001 and ITGC.
       </p>
       <div class="card-foot">
-        <span class="tag tag-cat">Professional</span>
-        <span class="tag">MobSF</span>
-        <span class="tag">GoPhish</span>
+        <span class="tag tag-cat">VAPT</span>
+        <span class="tag">Nmap</span>
         <span class="tag">Metasploit</span>
+        <span class="tag">Burp Suite</span>
+        <a class="card-link" href="writeups/vapt.html">Writeup &rarr;</a>
       </div>
     </article>
 
